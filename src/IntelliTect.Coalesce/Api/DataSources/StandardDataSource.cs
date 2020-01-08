@@ -15,6 +15,7 @@ using IntelliTect.Coalesce.Api;
 using IntelliTect.Coalesce.Utilities;
 using System.Collections.ObjectModel;
 using IntelliTect.Coalesce.Api.DataSources;
+using System.Threading;
 
 namespace IntelliTect.Coalesce
 {
@@ -44,6 +45,11 @@ namespace IntelliTect.Coalesce
         /// </summary>
         public int MaxPageSize { get; set; } = 10_000;
 
+        /// <summary>
+        /// A <see cref="CancellationToken"/> that can be observed to see if the underlying request has been canceled.
+        /// </summary>
+        public CancellationToken CancellationToken => Context.CancellationToken;
+
         static StandardDataSource()
         {
             // Fixes EF Core query caching issues: https://dzone.com/articles/investigating-a-memory-leak-in-entity-framework-co
@@ -63,7 +69,7 @@ namespace IntelliTect.Coalesce
         {
             // Async disabled because of https://github.com/aspnet/EntityFrameworkCore/issues/9038.
             // Renable once microsoft releases the fix and we upgrade our references.
-            return false; // query.Provider is IAsyncQueryProvider;
+            return query.Provider is IAsyncQueryProvider;
         }
 
         /// <summary>
@@ -619,7 +625,7 @@ namespace IntelliTect.Coalesce
         public virtual Task<int> GetListTotalCountAsync(IQueryable<T> query, IFilterParameters parameters)
         {
             var canUseAsync = CanEvalQueryAsynchronously(query);
-            return canUseAsync ? query.CountAsync() : Task.FromResult(query.Count());
+            return canUseAsync ? query.CountAsync(CancellationToken) : Task.FromResult(query.Count());
         }
 
 
@@ -642,7 +648,7 @@ namespace IntelliTect.Coalesce
             query = ApplyListPaging(query, parameters, totalCount, out int page, out int pageSize);
             
             var canUseAsync = CanEvalQueryAsynchronously(query);
-            List<T> result = canUseAsync ? await query.ToListAsync() : query.ToList();
+            List<T> result = canUseAsync ? await query.ToListAsync(CancellationToken) : query.ToList();
 
             var tree = GetIncludeTree(query, parameters);
             return (new ListResult<T>(result, page: page, totalCount: totalCount, pageSize: pageSize), tree);
@@ -693,7 +699,7 @@ namespace IntelliTect.Coalesce
             var query = GetQuery(parameters);
 
             var canUseAsync = CanEvalQueryAsynchronously(query);
-            T result = canUseAsync ? await query.FindItemAsync(id) : query.FindItem(id);
+            T result = canUseAsync ? await query.FindItemAsync(id, CancellationToken) : query.FindItem(id);
 
             if (result == null)
             {

@@ -32,34 +32,35 @@
       </v-flex>
       
     </v-layout>
-    <v-layout >
-
-      <v-flex xs12>
-        <v-data-table
-          :headers="headers"
-          :items="company.employeesViewModels"
-          :search="search"
-          :pagination.sync="pagination"
-          :total-items="count"
-          :loading="isLoading"
-          class="elevation-1"
-          >
-          <template slot="items" slot-scope="props">
-              <td>
-                  <v-btn flat color="primary"
-                         @click.native="props.item.$save()"
-                         :loading="props.item.$save.isLoading"
-                         :disabled="props.item.$save.isLoading">
-                      <v-icon left>save</v-icon>
-                      Save
-                  </v-btn>
-              </td>
-            <td v-for="prop in showProps" :key="prop.name" :class="'prop-' + prop.name" >
-              <c-input :item="props.item" :prop="prop.name"/>
-            </td>
-          </template>
-        </v-data-table>
-      </v-flex>
+    <v-layout>
+        Loading: {{this.list.$load.isLoading}}
+        <br />
+        cancelToken: {{this.list.$load._cancelToken}}
+        <v-btn @click="list.$load()">Load</v-btn>
+        <v-flex xs12>
+            <v-data-table :headers="headers"
+                          :items="company.employeesViewModels"
+                          :search="search"
+                          :pagination.sync="pagination"
+                          :total-items="count"
+                          :loading="isLoading"
+                          class="elevation-1">
+                <template slot="items" slot-scope="props">
+                    <td>
+                        <v-btn flat color="primary"
+                               @click.native="props.item.$save()"
+                               :loading="props.item.$save.isLoading"
+                               :disabled="props.item.$save.isLoading">
+                            <v-icon left>save</v-icon>
+                            Save
+                        </v-btn>
+                    </td>
+                    <td v-for="prop in showProps" :key="prop.name" :class="'prop-' + prop.name">
+                        <c-input :item="props.item" :prop="prop.name" />
+                    </td>
+                </template>
+            </v-data-table>
+        </v-flex>
     </v-layout>
     
   </v-container>
@@ -76,7 +77,7 @@ import { Person } from '../metadata.g';
 import * as metadata from '../metadata.g';
 import * as models from '../models.g';
 
-import { PersonViewModel, CaseViewModel, CompanyViewModel } from '../viewmodels.g'
+import { PersonViewModel, PersonListViewModel, CompanyViewModel } from '../viewmodels.g'
 import { PersonApiClient } from '../api-clients.g';
 
 
@@ -90,7 +91,9 @@ export default class extends Vue {
     metadata = metadata.Person
     company = new CompanyViewModel();
   person: PersonViewModel = new PersonViewModel();
-  isLoading: boolean = false;
+    isLoading: boolean = false;
+
+    list = new PersonListViewModel;
   
   pagination = {
     sortBy: '', 
@@ -114,30 +117,37 @@ export default class extends Vue {
   getData() {
     this.isLoading = true;
 
-    new PersonApiClient()
-      .list({
-        page: this.pagination.page,
-        pageSize: this.pagination.rowsPerPage,
-        search: this.search,
-        orderBy: this.pagination.descending ? undefined : this.pagination.sortBy,
-        orderByDescending: this.pagination.descending ? this.pagination.sortBy : undefined,
-      })
-      .then(res => {
-        const listResult = res.data;
-        const list = listResult.list;
-        this.isLoading = false;
-        if (!list) return;
+    //new PersonApiClient()
+    //  .list({
+    //    page: this.pagination.page,
+    //    pageSize: this.pagination.rowsPerPage,
+    //    search: this.search,
+    //    orderBy: this.pagination.descending ? undefined : this.pagination.sortBy,
+    //    orderByDescending: this.pagination.descending ? this.pagination.sortBy : undefined,
+    //  })
+    //  .then(res => {
+    //    const listResult = res.data;
+    //    const list = listResult.list;
+    //    this.isLoading = false;
+    //    if (!list) return;
 
-        this.items = list;
-        this.pagination.page = listResult.page;
-        this.pagination.rowsPerPage = listResult.pageSize;
-        this.count = listResult.totalCount;
+    //    this.items = list;
+    //    this.pagination.page = listResult.page;
+    //    this.pagination.rowsPerPage = listResult.pageSize;
+    //    this.count = listResult.totalCount;
         
-        // this.person = new PersonViewModel(list[0]);
-      })
+    //    // this.person = new PersonViewModel(list[0]);
+    //  })
   }
 
     async mounted() {
+        this.list.$pageSize = 1000000;
+        this.list.$load.setConcurrency("cancel");
+        //this.list.$load();
+        //setTimeout(() => this.list.$load(), 800);
+        //setTimeout(() => this.list.$load(), 1600);
+        //setTimeout(() => this.list.$load(), 1650);
+
         await this.company.$load(1);
 
         await this.person.$load(1)
